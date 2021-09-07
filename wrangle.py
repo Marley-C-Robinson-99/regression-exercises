@@ -2,6 +2,7 @@ import pandas as pd
 import os
 from env import host, user, password
 
+from datetime import date
 import warnings
 warnings.filterwarnings("ignore")
 
@@ -18,7 +19,7 @@ def get_db_url(host = host, user = user, password = password, db = 'zillow'):
     return f'mysql+pymysql://{user}:{password}@{host}/{db}'
 
 # Function to acquire neccessary zillow data from Codeup's MySQL server
-def get_zillow_data():
+def acquire_zillow():
     filename = "zillow.csv"
 
     if os.path.isfile(filename):
@@ -106,7 +107,19 @@ def remove_outliers(df, k, col_list):
         
     return df
 
-def prepare_zillow(df):
+def yearly_tax(df):
+    ''' 
+    Creates a rounded yearly_tax feature
+    '''
+    # Getting current year
+    curr_year = int(f'{str(date.today())[:4]}')
+
+    # Creating column
+    df['yearly_tax'] = df.tax_value / (curr_year - df.year_built)
+
+    df.yearly_tax = round(df.yearly_tax.astype(float), 0)
+
+def prepare_zillow(df = acquire_zillow()):
     ''' Prepare zillow data for exploration'''
     
     # list of non-object cols
@@ -125,31 +138,96 @@ def prepare_zillow(df):
     
     # drop taxamount
     df = df.drop(columns = 'taxamount')
-    
-    # train/validate/test split
-    train_validate, test = train_test_split(df, test_size=.2, random_state=123)
-    train, validate = train_test_split(train_validate, test_size=.3, random_state=123)
-    
+    df = impute_zillow(df)
+
+    # creating yearly_tax
+    yearly_tax(df)
+
+    return df
+
+
+def impute_zillow(df):   
     # impute year built using mode
     imp = SimpleImputer(strategy='most_frequent')  # build imputer
 
-    imp.fit(train[['year_built']]) # fit to train
+    imp.fit(df[['year_built']]) # fit to train
 
     # transform the data
-    train[['year_built']] = imp.transform(train[['year_built']])
-    validate[['year_built']] = imp.transform(validate[['year_built']])
-    test[['year_built']] = imp.transform(test[['year_built']])   
-    
-    return train, validate, test 
+    df[['year_built']] = imp.transform(df[['year_built']])
+    return df
+
+
+def split_zillow(df, target = '', seed=123):
+    '''
+    This function takes in a dataframe, the name of the target variable
+    (for stratification purposes if one is provided, otherwise no stratification), and an integer for a setting a seed
+    and splits the data into train, validate and test. 
+    Test is 20% of the original dataset, validate is .30*.80= 24% of the 
+    original dataset, and train is .70*.80= 56% of the original dataset. 
+    The function returns, in this order, train, validate and test dataframes. 
+    '''
+    if target == '':
+        train_validate, test = train_test_split(df, test_size=0.2, 
+                                                random_state=seed)
+        train, validate = train_test_split(train_validate, test_size=0.3, 
+                                                random_state=seed)
+        return train, validate, test
+    else:
+        train_validate, test = train_test_split(df, test_size=0.2, 
+                                            random_state=seed, 
+                                            stratify=df[target])
+        train, validate = train_test_split(train_validate, test_size=0.3, 
+                                            random_state=seed,
+                                            stratify=train_validate[target])
+        return train, validate, test
+
 
 def wrangle_zillow():
     '''Acquire and prepare data from Zillow database for explore'''
-    train, validate, test = prepare_zillow(get_zillow_data())
+    train, validate, test = split_zillow(prepare_zillow())
     
     return train, validate, test
 
+###################################         SCALING         ###################################
 
-### Viz ###
+def Standard_Scaler(X_train, X_validate, X_test):
+    """
+    Takes in X_train, X_validate and X_test dfs with numeric values only
+    Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs
+    """
+
+    scaler = sklearn.preprocessing.StandardScaler().fit(X_train)
+    X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
+    X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
+    X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
+    
+    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
+
+def Min_Max_Scaler(X_train, X_validate, X_test):
+    """
+    Takes in X_train, X_validate and X_test dfs with numeric values only
+    Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs 
+    """
+    scaler = sklearn.preprocessing.MinMaxScaler().fit(X_train)
+    X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
+    X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
+    X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
+    
+    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
+
+def Robust_Scaler(X_train, X_validate, X_test):
+    """
+    Takes in X_train, X_validate and X_test dfs with numeric values only
+    Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs 
+    """
+    scaler = sklearn.preprocessing.RobustScaler().fit(X_train)
+    X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
+    X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
+    X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
+    
+    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
+
+###################################         VIZUALIZE         ###################################
 def get_hist(df):
     ''' Gets histographs of acquired continuous variables'''
     
@@ -220,3 +298,23 @@ def get_box(df):
         plt.tight_layout()
 
     plt.show()
+
+def visualize_scaled_date(scaler, scaler_name, feature):
+    scaled = scaler.fit_transform(train[[feature]])
+    fig = plt.figure(figsize = (12,6))
+
+    gs = plt.GridSpec(2,2)
+
+    ax1 = fig.add_subplot(gs[0, :])
+    ax2 = fig.add_subplot(gs[1,0])
+    ax3 = fig.add_subplot(gs[1,1])
+
+    ax1.scatter(train[[feature]], scaled)
+    ax1.set(xlabel = feature, ylabel = 'Scaled_' + feature, title = scaler_name)
+
+    ax2.hist(train[[feature]])
+    ax2.set(title = 'Original')
+
+    ax3.hist(scaled)
+    ax3.set(title = 'Scaled')
+    plt.tight_layout();
