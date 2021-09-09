@@ -72,34 +72,53 @@ def feature_combos(df):
     return combos
     
 
-# def var_histplot(df):
-#     ''' Create a histplot for unique combos of vars
-#     '''
-#     pairs, unique_pairs, cat_quant_pairs = pairing(df)
+def hist_combos(df):
+    ''' Create a histplot for vars
+    '''
+    feats, cat_feats, quant_feats = separate_feats(df)
+    
+    plt.figure(figsize=(16, 3))
 
-#     combos = feature_combos(df)
-#     for combo in combos:
-#         plt.figure(figsize=(10,10))
-#         plt.title(f'Histplot of {len(combo)} features')
-#         sns.histplot(df[list(combo)], x = f'{}', annot=True)
-#         plt.show()
-#         print(f'Heatmap features: {combo}')
-#         print('_____________________________________________')
+    for i, feat in enumerate(feats):
+
+        # i starts at 0, but plot nos should start at 1
+        plot_number = i + 1 
+
+        # Create subplot.
+        plt.subplot(1, len(feats), plot_number)
+
+        # Title with column name.
+        plt.title(feat)
+
+        # Display histogram for column.
+        df[feat].hist(bins=5)
+
+        # Hide gridlines.
+        plt.grid(False)
+    
+        # turn off scientific notation
+        plt.ticklabel_format(useOffset=False)
+    plt.tight_layout()
+    plt.show()
 
 
-def relplot_variable_pairs(df):
+def relplot_pairs(df):
     ''' 
     Plots each unique cat/quant pair using a relplot
     '''
     pairs, u_pairs, cq_pairs = pairing(df)
-    for pair in cq_pairs:
+    for i, pair in enumerate(cq_pairs):
+        # i starts at 0, but plot nos should start at 1
+        plot_number = i + 1 
+        # subplotting based on index
+        plt.subplot(1, len(cq_pairs), plot_number)
         sns.relplot(x= pair[0], y= pair[1], data=df)
         plt.title(f'{pair[0]} vs {pair[1]}')
         plt.show()
         print('_____________________________________________')
 
 
-def lmplot_variable_pairs(df):
+def lmplot_pairs(df):
     ''' 
     Plots each unique cat/quant pair using a lmplot
     '''
@@ -111,7 +130,7 @@ def lmplot_variable_pairs(df):
         print('_____________________________________________')
 
 
-def jointplot_variable_pairs(df):
+def jointplot_pairs(df):
     ''' 
     Plots each unique cat/quant pair using a jointplot
     '''
@@ -124,7 +143,7 @@ def jointplot_variable_pairs(df):
         print('_____________________________________________')
 
 
-def pairplot_variable_pairs(df):
+def pairplot_combos(df):
     ''' 
     Plots combinations of quant variables using pairplots where combo length greater or equal to 2
     '''
@@ -144,7 +163,7 @@ def pairplot_variable_pairs(df):
         print('_____________________________________________')
 
 
-def var_heatmap(df):
+def heatmap_combos(df):
     ''' 
     Create a heatmaps for unique combos of vars where combo length is greater than 3
     '''
@@ -164,17 +183,20 @@ def var_heatmap(df):
 ###################################         EXPOLORE FUNCS         ###################################
 
 def plot_categorical_and_continuous_vars(df):
+    print('Histograms for each feature')
+    hist_combos(df)
+    print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Relplots for each cat/quant feature pairing')
-    relplot_variable_pairs(df)
+    relplot_pairs(df)
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Lmplots for each cat/quant feature pairing')
-    lmplot_variable_pairs(df)
+    lmplot_pairs(df)
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Jointplots for each cat/quant feature pairing')
-    jointplot_variable_pairs(df)
+    jointplot_pairs(df)
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Heatmaps for feature combos (len > 3)')
-    var_heatmap(df)
+    heatmap_combos(df)
     print('~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~')
     print('Pairplots for quantitative feature combos')
-    pairplot_variable_pairs(df)
+    pairplot_combos(df)

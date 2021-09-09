@@ -157,7 +157,7 @@ def impute_zillow(df):
     return df
 
 
-def split_zillow(df, target = '', seed=123):
+def split_zillow(df, target = None, seed=123):
     '''
     This function takes in a dataframe, the name of the target variable
     (for stratification purposes if one is provided, otherwise no stratification), and an integer for a setting a seed
@@ -166,7 +166,7 @@ def split_zillow(df, target = '', seed=123):
     original dataset, and train is .70*.80= 56% of the original dataset. 
     The function returns, in this order, train, validate and test dataframes. 
     '''
-    if target == '':
+    if target == None:
         train_validate, test = train_test_split(df, test_size=0.2, 
                                                 random_state=seed)
         train, validate = train_test_split(train_validate, test_size=0.3, 
