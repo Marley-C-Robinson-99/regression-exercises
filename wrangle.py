@@ -6,6 +6,7 @@ from datetime import date
 import warnings
 warnings.filterwarnings("ignore")
 
+from sklearn.preprocessing import StandardScaler
 from sklearn.model_selection import train_test_split
 from sklearn.impute import SimpleImputer
 
@@ -157,14 +158,15 @@ def impute_zillow(df):
     return df
 
 
-def split_zillow(df, target = None, seed=123):
+def wrangle_zillow(df = prepare_zillow(), target = None, seed=123):
     '''
     This function takes in a dataframe, the name of the target variable
-    (for stratification purposes if one is provided, otherwise no stratification), and an integer for a setting a seed
+    (for X_y spit if one is provided), and an integer for a setting a seed
     and splits the data into train, validate and test. 
     Test is 20% of the original dataset, validate is .30*.80= 24% of the 
     original dataset, and train is .70*.80= 56% of the original dataset. 
     The function returns, in this order, train, validate and test dataframes. 
+    Or, if target is provided, in this order, X_train, X_validate, X_test, y_train, y_validate, y_test
     '''
     if target == None:
         train_validate, test = train_test_split(df, test_size=0.2, 
@@ -173,59 +175,30 @@ def split_zillow(df, target = None, seed=123):
                                                 random_state=seed)
         return train, validate, test
     else:
-        train_validate, test = train_test_split(df, test_size=0.2, 
-                                            random_state=seed, 
-                                            stratify=df[target])
-        train, validate = train_test_split(train_validate, test_size=0.3, 
-                                            random_state=seed,
-                                            stratify=train_validate[target])
-        return train, validate, test
-
-
-def wrangle_zillow():
-    '''Acquire and prepare data from Zillow database for explore'''
-    train, validate, test = split_zillow(prepare_zillow())
-    
-    return train, validate, test
+        X = df[[col for col in df.columns if df[col].dtype != object]].drop(columns = target)
+        y = df[target]
+        X_train_validate, X_test, y_train_validate, y_test  = train_test_split(X, y, 
+                                    test_size=0.2, 
+                                    random_state=seed)
+        X_train, X_validate, y_train, y_validate  = train_test_split(X_train_validate, y_train_validate, 
+                                    test_size=.3, 
+                                    random_state=seed)
+        return X_train, X_validate, X_test, y_train, y_validate, y_test
 
 ###################################         SCALING         ###################################
 
-def Standard_Scaler(X_train, X_validate, X_test):
+def scaling(X_train, X_validate, X_test, scaler_type = StandardScaler()):
     """
     Takes in X_train, X_validate and X_test dfs with numeric values only
     Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs
     """
 
-    scaler = sklearn.preprocessing.StandardScaler().fit(X_train)
+    scaler = sklearn.preprocessing.scaler_type.fit(X_train)
     X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
     X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
     X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
     
-    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
-
-def Min_Max_Scaler(X_train, X_validate, X_test):
-    """
-    Takes in X_train, X_validate and X_test dfs with numeric values only
-    Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs 
-    """
-    scaler = sklearn.preprocessing.MinMaxScaler().fit(X_train)
-    X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
-    X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
-    X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
-    
-    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
-
-def Robust_Scaler(X_train, X_validate, X_test):
-    """
-    Takes in X_train, X_validate and X_test dfs with numeric values only
-    Returns scaler, X_train_scaled, X_validate_scaled, X_test_scaled dfs 
-    """
-    scaler = sklearn.preprocessing.RobustScaler().fit(X_train)
-    X_train_scaled = pd.DataFrame(scaler.transform(X_train), index = X_train.index, columns = X_train.columns)
-    X_validate_scaled = pd.DataFrame(scaler.transform(X_validate), index = X_validate.index, columns = X_validate.columns)
-    X_test_scaled = pd.DataFrame(scaler.transform(X_test), index = X_test.index, columns = X_test.columns)
-    
-    return scaler, X_train_scaled, X_validate_scaled, X_test_scaled
+    return X_train_scaled, X_validate_scaled, X_test_scaled
 
 ###################################         VIZUALIZE         ###################################
 def get_hist(df):
